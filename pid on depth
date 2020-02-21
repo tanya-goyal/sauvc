@@ -1,0 +1,48 @@
+#include <Servo.h>
+//depth used in meters
+int pressure,value;
+int error,kp,kd,prev_error=0,correction,derrivative;
+int signalstable = 1500;  //signalstable to be defined such that bot is able to float at a certain height
+int setpoint = 1;
+byte servoPinTopRight = 9;
+byte servoPinTopLeft=10;
+byte servoPinTopBottom=11;
+Servo servoTopRight;
+Servo servoTopLeft;
+Servo servoTopBottom;
+
+void setup() {
+  // put your setup code here, to run once:
+servoTopRight.attach(servoPinTopRight);
+servoTopLeft.attach(servoPinTopLeft);
+servoTopBottom.attach(servoPinTopBottom);
+servoTopRight.writeMicroseconds(1500);
+servoTopLeft.writeMicroseconds(1500);
+servoTopBottom.writeMicroseconds(1500);
+
+delay(7000);
+}
+
+void loop() {
+//pressure_read
+  calculate_pid();
+  balance();
+}
+
+void balance(){
+  if(correction<0){
+  value = (correction, -1,0,1200,signalstable);}
+ else{
+   value = (correction, 0,1,signalstable,1800);
+  }
+ servoTopRight.writeMicroseconds(value);
+ servoTopLeft.writeMicroseconds(value);
+ servoTopBottom.writeMicroseconds(value);
+  }
+
+void calculate_pid(){
+error = pressure - setpoint; 
+derrivative = error - prev_error;
+correction = (kp*error)+(kd*derrivative);
+prev_error = error;
+  }
