@@ -1,0 +1,147 @@
+#include <Servo.h>
+#include <ping1d.h>
+#include <pingmessage.h>
+#include <pingmessage_all.h>
+#include <pingmessage_ping1D.h>
+#include <ping_parser.h>
+
+#include "ping1d.h"
+#include <Wire.h>
+#include "MS5837.h"
+MS5837 sensor;
+static const uint8_t arduinoRxPin = 19; //Serial1 rx1
+static const uint8_t arduinoTxPin = 18; //Serial1 tx1
+static const uint8_t arduinoRxPin1 = 17; //Serial1 rx2
+static const uint8_t arduinoTxPin1 = 16; //Serial1 tx2
+
+
+static Ping1D ping1 { Serial1 };
+static Ping1D ping2 { Serial2 };
+static const uint8_t ledPin = 13;
+//depth used in meters
+int depth,value;
+int error,kp,kd,prev_error=0,correction,derrivative;
+int signalstable  //signalstable to be defined such that bot is able to float at a certain height
+int setpoint = 1;
+byte servoPinTopRight = 9;
+byte servoPinTopLeft=10;
+byte servoPinTopBottom=11;
+Servo servoTopRight;
+Servo servoTopLeft;
+Servo servoTopBottom;
+
+void setup() {
+  // put your setup code here, to run once:
+servoTopRight.attach(servoPinTopRight);
+servoTopLeft.attach(servoPinTopLeft);
+servoTopBottom.attach(servoPinTopBottom);
+servoTopRight.writeMicroseconds(signalStable);
+servoTopLeft.writeMicroseconds(signalStable);
+servoTopBottom.writeMicroseconds(signalStable);
+
+delay(7000);
+ Serial2.begin(9600);
+  Serial1.begin(9600);
+  Serial.begin(9600);
+  pinMode(ledPin, OUTPUT);
+  
+  Serial.println("Starting pressure");
+  Serial.println("starting sonar");
+  
+  Wire.begin();
+  
+  while (!sensor.init()) {
+    Serial.println("Init failed!");
+    Serial.println("Are SDA/SCL connected correctly?");
+    Serial.println("Blue Robotics Bar30: White=SDA, Green=SCL");
+    Serial.println("\n\n\n");
+    delay(2000);
+  }
+  
+  sensor.setModel(MS5837::MS5837_30BA);
+  sensor.setFluidDensity(997);
+  
+  while (!ping1.initialize()) {
+    Serial.println("\nPing device failed to initialize!");
+    Serial.println("Are the Ping rx/tx wired correctly?");
+    Serial.print("Ping rx is the green wire, and should be connected to Arduino pin ");
+    Serial.print(arduinoTxPin);
+    Serial.println(" (Arduino tx)");
+    Serial.print("Ping tx is the white wire, and should be connected to Arduino pin ");
+    Serial.print(arduinoRxPin);
+    Serial.println(" (Arduino rx)");
+    delay(2000);
+  }
+}
+
+
+
+void loop() {
+
+ 
+   sensor.read();
+
+  Serial.print("Depth: "); 
+  depth=sensor.depth();
+  Serial.print(depth); 
+  Serial.println(" m ");
+  
+  calculate_pid();
+  balance();
+  
+//  Serial.print("Pressure: "); 
+//  Serial.print(sensor.pressure()); 
+//  Serial.print(" mbar  ");
+  
+//  Serial.print("Temperature: "); 
+//  Serial.print(sensor.temperature()); 
+//  Serial.println(" deg C");
+  
+//  Serial.print("Altitude: "); 
+//  Serial.print(sensor.altitude()); 
+//  Serial.println(" m above mean sea level");
+
+  
+  if (ping1.update()) {
+    Serial.print("Front_Sonar: ");
+    Serial.print(ping1.distance());
+    Serial.print(" mm  ");
+//    Serial.print("\tConfidence1: ");
+//    Serial.println(ping1.confidence());
+  } else {
+    Serial.println("No update from front_sonar!");
+  }
+  
+  if (ping2.update()) {
+    Serial.print("side_Sonar: ");
+    Serial.print(ping2.distance());
+    Serial.print(" mm  ");
+//    Serial.print("\tConfidence2: ");
+//    Serial.println(ping2.confidence());
+  } else {
+    Serial.println("No update from side_sonar!");
+  }
+
+  // Toggle the LED to show that the program is running
+  digitalWrite(ledPin, !digitalRead(ledPin));
+  delay(500);
+
+}
+
+void balance(){
+  if(correction<0){
+  value = (correction, -1,0,1200,signalstable);}
+ else{
+   value = (correction, 0,1,signalstable,1800);
+  }
+ servoTopRight.writeMicroseconds(value);
+ servoTopLeft.writeMicroseconds(value);
+ servoTopBottom.writeMicroseconds(value);
+  }
+
+void calculate_pid(){
+error = sensor.depth() - setpoint; 
+derrivative = error - prev_error;
+correction = (kp*error)+(kd*derrivative);
+prev_error = error;
+  }
