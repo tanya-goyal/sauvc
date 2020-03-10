@@ -1,0 +1,64 @@
+    #include <ros.h>
+    #include <std_msgs/String.h>
+     
+    ros::NodeHandle nh;
+     
+    String kp;
+    String kd;
+    String err;
+    void messageCb1(const std_msgs::String &msg)
+    {
+      kp=msg.data;
+    }
+     
+    void messageCb2(const std_msgs::String &msg)
+    {
+      kd=msg.data;
+    }
+     
+     void messageCb3(const std_msgs::String &msg)
+    {
+      err=msg.data;
+     
+    }
+     
+    ros::Subscriber<std_msgs::String> sub1("kp", &messageCb1);
+    ros::Subscriber<std_msgs::String> sub2("kd", &messageCb2);
+    ros::Subscriber<std_msgs::String> sub3("err", &messageCb3);
+    void setup()
+    {Serial.begin(9600);
+     
+      nh.initNode();
+      nh.subscribe(sub1);
+      nh.subscribe(sub2);
+      nh.subscribe(sub3);
+     
+     
+    }
+     
+    void loop()
+    {
+      nh.spinOnce();
+      delay(200);
+      int kp1=kp.toInt();
+      int kd1=kd.toInt();
+      int err1=err.toInt();
+     //Serial.print(kp);
+    int prev_err =0 ;
+     
+    int lthrust=1500;
+    int rthrust=1500;
+     
+     
+    int derr = err1 - prev_err;
+    prev_err = err1;
+    int corr = kp1 * err1 + kd1 * derr;
+     
+    int pwm2=rthrust+corr;
+    int pwm1=lthrust-corr;
+    int pwm3=1500;
+    int pwm4=1500;
+    int pwm5=1500;
+    int pwm6=1500;
+    //Serial.print(pwm1); 
+    }
